@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: pytest (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install numpy pytest
+      - name: Run test suite (gradient checks, LoRA, DPO, export, CLI pipeline)
+        run: pytest -q
+
+  torch-parity:
+    name: torch autograd cross-validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy pytest torch --index-url https://download.pytorch.org/whl/cpu
+      - run: pytest tests/test_torch_parity.py -v
+
+  end-to-end:
+    name: tiny end-to-end training run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy
+      - name: Tokenizer -> data -> pretrain 200 steps on synthetic text -> export
+        run: |
+          python - <<'EOF'
+          from pathlib import Path
+          text = ("<|endoftext|>".join(
+              "Once upon a time there was a cat. The cat sat on the mat. " * 3
+              for _ in range(400)))
+          Path("corpus.txt").write_text(text, encoding="utf-8")
+          EOF
+          python -m nimbus_train train-tokenizer --text corpus.txt --vocab-size 300 --out data/tokenizer
+          python -m nimbus_train prepare-data --text corpus.txt --tokenizer data/tokenizer --val-frac 0.1 --out data
+          python -m nimbus_train pretrain --data data --out runs/tiny --layers 2 --heads 2 \
+            --d-model 48 --d-mlp 96 --seq 32 --batch 8 --steps 200 --lr 2e-3 --warmup 20 \
+            --eval-every 100 --eval-batches 4 --log-every 50 --ckpt-every 100
+          python -m nimbus_train export --run runs/tiny --out checkpoints/tiny
+          python -m nimbus_train generate --checkpoint checkpoints/tiny \
+            --prompt "Once upon a time" --max-new-tokens 24 --temperature 0.8

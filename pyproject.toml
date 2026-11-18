@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nimbus-train"
+version = "0.1.0"
+description = "Train transformers from scratch in pure NumPy: hand-written backprop, no autograd. Pretrain -> LoRA -> DPO -> export to nimbus-infer."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "EAnge1o" }]
+keywords = [
+    "llm", "training", "transformer", "numpy", "from-scratch",
+    "backpropagation", "lora", "dpo", "nanoGPT", "cpu",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+# optional: cross-validate the hand-written backward against real autograd
+torch = ["torch>=2.0"]
+
+[project.scripts]
+nimbus-train = "nimbus_train.cli:main"
+
+[tool.setuptools]
+packages = ["nimbus_train"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

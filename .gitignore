@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# training artifacts (never commit runs or datasets)
+runs/
+data/*.bin
+checkpoints/
+*.npz
+*.safetensors
+
+.venv/
+venv/
+.idea/
+.vscode/
+.DS_Store
