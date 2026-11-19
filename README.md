@@ -50,14 +50,38 @@ SFT / LoRA / DPO                    │
 
 ## Results — a 4.9M-parameter model trained on a laptop CPU
 
-Trained on **TinyStoriesV2-GPT4** (100 MB slice, 25M tokens) with a
-from-scratch 8,192-token BPE tokenizer, on an i7-12700H laptop, pure NumPy:
+Trained on **TinyStoriesV2-GPT4** (100 MB slice → 25.2M tokens) with a
+from-scratch 8,192-token BPE tokenizer, on an i7-12700H laptop, CPU only,
+pure NumPy: **6,000 steps ≈ 49M tokens in 6.4 hours** at **~2,330 tokens/s
+sustained** (hand-optimized elementwise kernels + BLAS, see below).
 
-* throughput ≈ **2,300 tokens/s sustained** (hand-optimized elementwise
-  kernels + BLAS, see below)
-* 6,000 steps ≈ 49M tokens ≈ 6.5 hours, no GPU
+Final loss **1.825** (val 1.838, perplexity ≈ 6.3) — full metrics, samples
+and demo logs in [results/FLAGSHIP.md](results/FLAGSHIP.md):
 
-*(loss curve + samples land in `results/` when the flagship run finishes)*
+![loss curve](results/loss_curve.png)
+
+What the exported model writes through **nimbus-infer** (temperature 0.8):
+
+```text
+> Once upon a time
+, there was a wealthy man named Jack. He lived in a small house with many
+old clothes. Jack liked to play with his toys and find his favorite toy,
+a big bow. One day, Jack wanted to show his friend the bow to his friend,
+Sam. He ran to Sam's house and jumped in. "Look, Sam! I found a bow!" ...
+
+> One sunny day, Lily
+found a pretty pink flower that she wanted to show her mom. "Look, Mom! I
+found a bright red flower!" Lily said. Her mom looked at the flower and
+smiled. "That's a very pretty flower, Lily. Let's show it back it!" ...
+```
+
+**Fine-tuning demos on the same checkpoint** (both LoRA, r=8, 1.3% trainable):
+
+* **SFT** — first-sentence → story completion, loss on completion tokens
+  only: completion loss 2.12 → **1.73** in 300 steps (~7 min on CPU).
+* **DPO** — real vs swapped continuations, β=0.1, frozen base as reference
+  policy: preference accuracy 50% → **90–100%**, loss from its theoretical
+  starting point ln 2 → ~0.15.
 
 **The closed loop, run for real:**
 
@@ -67,11 +91,11 @@ exported 4,854,272 params -> checkpoints/tinystories-5m
 verified: max logit diff 0.00e+00        # bit-exact roundtrip
 
 $ python -m nimbus_infer chat checkpoints/tinystories-5m   # ← the OTHER repo
-, there was a little boy. One sunny day, the little girl named Spot met
-a little king. The boy was a little girl wanted to help her friend, ...
+, there was a wealthy man named Jack. He lived in a small house ...
 ```
 
-and int8-quantized, still in nimbus-infer: **3.96× smaller, same story voice.**
+and int8-quantized, still in nimbus-infer: **3.96× smaller (19.4 → 4.9 MB),
+same story voice.**
 
 ## Quickstart
 
